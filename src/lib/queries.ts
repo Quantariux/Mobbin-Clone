@@ -16,38 +16,24 @@ export async function getScreenTypes() {
   return data;
 }
 
-export async function getUiElements() {
-  const { data, error } = await supabase.from("ui_elements").select("*").order("name");
-  if (error) throw error;
-  return data;
-}
-
-/** Distinct flow names across apps (flow slugs repeat per app by design). */
-export async function getFlowKinds() {
-  const { data, error } = await supabase.from("flows").select("name, slug").order("name");
-  if (error) throw error;
-  const seen = new Set<string>();
-  return data.filter((f) => (seen.has(f.slug) ? false : (seen.add(f.slug), true)));
-}
-
 /** Live library totals for the landing page — no hardcoded marketing numbers. */
 export async function getStats() {
-  const [apps, screens, flows] = await Promise.all([
+  const [apps, ios, web] = await Promise.all([
     supabase.from("apps").select("*", { count: "exact", head: true }),
-    supabase.from("screens").select("*", { count: "exact", head: true }),
-    supabase.from("flows").select("*", { count: "exact", head: true }),
+    supabase.from("screens").select("*", { count: "exact", head: true }).eq("platform", "ios"),
+    supabase.from("screens").select("*", { count: "exact", head: true }).eq("platform", "web"),
   ]);
-  const error = apps.error ?? screens.error ?? flows.error;
+  const error = apps.error ?? ios.error ?? web.error;
   if (error) throw error;
   return {
     apps: apps.count ?? 0,
-    screens: screens.count ?? 0,
-    flows: flows.count ?? 0,
+    iosScreens: ios.count ?? 0,
+    webScreens: web.count ?? 0,
   };
 }
 
 /* ------------------------------------------------------------------ */
-/* Apps                                                                */
+/* Apps (always scoped to the selected platform)                       */
 /* ------------------------------------------------------------------ */
 
 const APP_CARD_SELECT =
@@ -59,23 +45,23 @@ const APP_ORDER: Record<string, { column: string }> = {
   rated: { column: "rating" },
 };
 
-export async function getApps({ platform, sort = "latest" }: { platform?: string; sort?: string } = {}) {
+export async function getApps({ platform, sort = "latest" }: { platform: string; sort?: string }) {
   const { column } = APP_ORDER[sort] ?? APP_ORDER.latest;
-  let query = supabase
+  const { data, error } = await supabase
     .from("apps")
     .select(APP_CARD_SELECT)
+    .contains("platform", [platform])
     .order(column, { ascending: false, nullsFirst: false });
-  if (platform) query = query.contains("platform", [platform]);
-  const { data, error } = await query;
   if (error) throw error;
   return data;
 }
 
-export async function getAppsByCategory(categorySlug: string) {
+export async function getAppsByCategory(categorySlug: string, platform: string) {
   const { data, error } = await supabase
     .from("app_categories")
-    .select(`apps(${APP_CARD_SELECT}), categories!inner(slug)`)
-    .eq("categories.slug", categorySlug);
+    .select(`apps!inner(${APP_CARD_SELECT}), categories!inner(slug)`)
+    .eq("categories.slug", categorySlug)
+    .contains("apps.platform", [platform]);
   if (error) throw error;
   return data.map((row) => row.apps);
 }
@@ -89,10 +75,8 @@ export async function getAppBySlug(slug: string) {
       app_categories(categories(name, slug)),
       screens(
         id, image_url, platform, is_highlight, created_at,
-        screen_ui_elements(ui_elements(name, slug)),
         screen_screen_types(screen_types(name, slug))
-      ),
-      flows(id, name, slug, flow_screens(position, screens(id, image_url)))
+      )
     `,
     )
     .eq("slug", slug)
@@ -101,13 +85,14 @@ export async function getAppBySlug(slug: string) {
   return data;
 }
 
-export async function searchApps(query: string) {
+export async function searchApps(query: string, platform: string) {
   // ilike inside .or() — strip characters that would break the filter syntax
   const q = query.replace(/[,%()]/g, " ").trim();
   if (!q) return [];
   const { data, error } = await supabase
     .from("apps")
     .select(APP_CARD_SELECT)
+    .contains("platform", [platform])
     .or(`name.ilike.%${q}%,tagline.ilike.%${q}%`);
   if (error) throw error;
   return data;
@@ -117,30 +102,12 @@ export async function searchApps(query: string) {
 /* Screens filtered through join tables (DB-side, not client .filter)  */
 /* ------------------------------------------------------------------ */
 
-export async function getScreensByUiElement(slug: string) {
-  const { data, error } = await supabase
-    .from("screen_ui_elements")
-    .select("screens(*, apps(name, slug, icon_url)), ui_elements!inner(slug)")
-    .eq("ui_elements.slug", slug);
-  if (error) throw error;
-  return data.map((row) => row.screens);
-}
-
-export async function getScreensByScreenType(slug: string) {
+export async function getScreensByScreenType(slug: string, platform: string) {
   const { data, error } = await supabase
     .from("screen_screen_types")
-    .select("screens(*, apps(name, slug, icon_url)), screen_types!inner(slug)")
-    .eq("screen_types.slug", slug);
-  if (error) throw error;
-  return data.map((row) => row.screens);
-}
-
-export async function getScreensByFlow(slug: string) {
-  const { data, error } = await supabase
-    .from("flow_screens")
-    .select("position, screens(*, apps(name, slug, icon_url)), flows!inner(slug, name)")
-    .eq("flows.slug", slug)
-    .order("position");
+    .select("screens!inner(*, apps(name, slug, icon_url)), screen_types!inner(slug)")
+    .eq("screen_types.slug", slug)
+    .eq("screens.platform", platform);
   if (error) throw error;
   return data.map((row) => row.screens);
 }

@@ -71,8 +71,8 @@ export default function LandingView({ onExplore }) {
 
         <p className="mt-8 max-w-xl text-lg leading-relaxed text-muted">
           {stats
-            ? `Featuring ${stats.screens.toLocaleString()} screens across ${stats.apps.toLocaleString()} apps and ${stats.flows.toLocaleString()} flows`
-            : "A live library of screens, apps and flows"}{" "}
+            ? `Featuring ${stats.iosScreens.toLocaleString()} iOS and ${stats.webScreens.toLocaleString()} web screens across ${stats.apps.toLocaleString()} apps`
+            : "A live library of iOS and web screens"}{" "}
           — open source and free forever.
         </p>
 

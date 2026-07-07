@@ -7,23 +7,17 @@ import {
   getApps,
   getAppsByCategory,
   getCategories,
-  getFlowKinds,
-  getScreensByFlow,
   getScreensByScreenType,
-  getScreensByUiElement,
   getScreenTypes,
-  getUiElements,
   searchApps,
 } from "../lib/queries";
-import ScreenCard, { PhoneFrame } from "../components/ScreenCard";
+import ScreenCard, { BrowserFrame, PhoneFrame } from "../components/ScreenCard";
 
 const SORT_TABS = [
   { label: "Latest", key: "latest", column: "created_at" },
   { label: "Most popular", key: "popular", column: "review_count" },
   { label: "Top rated", key: "rated", column: "rating" },
 ];
-
-const SCREEN_FILTER_KINDS = ["screen-type", "ui-element", "flow"];
 
 function PanelColumn({ label, items, isLoading, activeSlug, onSelect }) {
   return (
@@ -57,9 +51,11 @@ function PanelColumn({ label, items, isLoading, activeSlug, onSelect }) {
   );
 }
 
-function AppCard({ app, onOpen }) {
+function AppCard({ app, platform, onOpen }) {
+  const platformScreens = (app.screens ?? []).filter((s) => s.platform === platform);
   const preview =
-    app.screens?.find((s) => s.is_highlight) ?? app.screens?.[0] ?? null;
+    platformScreens.find((s) => s.is_highlight) ?? platformScreens[0] ?? null;
+  const isWeb = platform === "web";
 
   return (
     <button
@@ -68,21 +64,27 @@ function AppCard({ app, onOpen }) {
       aria-label={`Open ${app.name}`}
       className="cursor-pointer text-left"
     >
-      <div className="flex h-[440px] justify-center overflow-hidden rounded-2xl bg-surface p-6 pb-0 transition-colors hover:bg-[#ebebec]">
-        <PhoneFrame className="mt-2 h-[520px]">
-          {preview ? (
-            <img
-              src={preview.image_url}
-              alt={`${app.name} screen`}
-              className="block w-full"
-              loading="lazy"
-            />
+      <div
+        className={cn(
+          "flex justify-center overflow-hidden rounded-2xl bg-surface transition-colors hover:bg-[#ebebec]",
+          isWeb ? "h-[300px] items-center p-6" : "h-[440px] p-6 pb-0",
+        )}
+      >
+        {preview ? (
+          isWeb ? (
+            <BrowserFrame className="max-w-[520px]">
+              <img src={preview.image_url} alt={`${app.name} screen`} className="block w-full" loading="lazy" />
+            </BrowserFrame>
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-muted">
-              No screens yet
-            </div>
-          )}
-        </PhoneFrame>
+            <PhoneFrame className="mt-2 h-[520px]">
+              <img src={preview.image_url} alt={`${app.name} screen`} className="block w-full" loading="lazy" />
+            </PhoneFrame>
+          )
+        ) : (
+          <div className="flex items-center justify-center text-sm text-muted">
+            No {isWeb ? "web" : "iOS"} screens yet
+          </div>
+        )}
       </div>
       <div className="mt-3 flex items-center gap-3 px-1">
         {app.icon_url && (
@@ -97,18 +99,25 @@ function AppCard({ app, onOpen }) {
   );
 }
 
-function CardSkeletons() {
+function CardSkeletons({ isWeb }) {
   return (
-    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div
+      className={cn(
+        "grid gap-8",
+        isWeb ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+      )}
+    >
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-[440px] animate-pulse rounded-2xl bg-surface" />
+        <div
+          key={i}
+          className={cn("animate-pulse rounded-2xl bg-surface", isWeb ? "h-[300px]" : "h-[440px]")}
+        />
       ))}
     </div>
   );
 }
 
-export default function BrowseView({ search, onClearSearch, onOpenApp }) {
-  const [platform, setPlatform] = useState("iOS");
+export default function BrowseView({ platform, search, onClearSearch, onOpenApp }) {
   const [sortKey, setSortKey] = useState("latest");
   const [filter, setFilter] = useState(null); // { kind, slug, name } | null
 
@@ -119,8 +128,6 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
 
   const categories = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const screenTypes = useQuery({ queryKey: ["screen-types"], queryFn: getScreenTypes });
-  const uiElements = useQuery({ queryKey: ["ui-elements"], queryFn: getUiElements });
-  const flowKinds = useQuery({ queryKey: ["flow-kinds"], queryFn: getFlowKinds });
 
   const results = useQuery({
     queryKey: [
@@ -130,21 +137,20 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
       sortKey,
     ],
     queryFn: () => {
-      if (searching) return searchApps(search);
-      if (!filter) return getApps({ platform: platform.toLowerCase(), sort: sortKey });
-      if (filter.kind === "category") return getAppsByCategory(filter.slug);
-      if (filter.kind === "screen-type") return getScreensByScreenType(filter.slug);
-      if (filter.kind === "ui-element") return getScreensByUiElement(filter.slug);
-      return getScreensByFlow(filter.slug);
+      if (searching) return searchApps(search, platform);
+      if (!filter) return getApps({ platform, sort: sortKey });
+      if (filter.kind === "category") return getAppsByCategory(filter.slug, platform);
+      return getScreensByScreenType(filter.slug, platform);
     },
   });
 
-  const showingScreens = Boolean(filter && SCREEN_FILTER_KINDS.includes(filter.kind));
+  const showingScreens = filter?.kind === "screen-type" && !searching;
+  const isWeb = platform === "web";
 
   const sortedApps = useMemo(() => {
     if (showingScreens || !results.data) return results.data;
     const { column } = SORT_TABS.find((t) => t.key === sortKey) ?? SORT_TABS[0];
-    return [...results.data].sort((a, b) => (b[column] ?? 0) > (a[column] ?? 0) ? 1 : -1);
+    return [...results.data].sort((a, b) => ((b[column] ?? 0) > (a[column] ?? 0) ? 1 : -1));
   }, [results.data, showingScreens, sortKey]);
 
   const selectFilter = (kind) => (item) => {
@@ -154,8 +160,8 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
 
   return (
     <main className="px-6 pt-[68px]">
-      {/* Mega filter panel — now DB-backed */}
-      <section className="grid grid-cols-2 gap-x-12 gap-y-10 py-10 lg:grid-cols-4">
+      {/* Filter panel — categories and screen types, DB-backed */}
+      <section className="grid max-w-3xl grid-cols-2 gap-x-12 gap-y-10 py-10">
         <PanelColumn
           label="Categories"
           items={categories.data}
@@ -170,40 +176,10 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
           activeSlug={filter?.kind === "screen-type" ? filter.slug : null}
           onSelect={selectFilter("screen-type")}
         />
-        <PanelColumn
-          label="UI Elements"
-          items={uiElements.data}
-          isLoading={uiElements.isLoading}
-          activeSlug={filter?.kind === "ui-element" ? filter.slug : null}
-          onSelect={selectFilter("ui-element")}
-        />
-        <PanelColumn
-          label="Flows"
-          items={flowKinds.data}
-          isLoading={flowKinds.isLoading}
-          activeSlug={filter?.kind === "flow" ? filter.slug : null}
-          onSelect={selectFilter("flow")}
-        />
       </section>
 
       {/* Toolbar */}
       <section className="flex items-center gap-8 pb-5 pt-4">
-        <div className="flex rounded-full bg-surface p-1">
-          {["iOS", "Web"].map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPlatform(p)}
-              className={cn(
-                "cursor-pointer rounded-full px-4 py-1.5 text-sm font-semibold transition-all",
-                platform === p ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink",
-              )}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-
         <div className="flex flex-1 items-center gap-7">
           {SORT_TABS.map((tab) => (
             <button
@@ -251,7 +227,7 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
           OPEN SOURCE
         </span>
         <p className="text-sm text-ink">
-          Loupe is open source and free forever — every app, screen and flow included.{" "}
+          Loupe is open source and free forever — every app and screen included.{" "}
           <a
             href={GITHUB_URL}
             target="_blank"
@@ -265,7 +241,7 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
 
       {/* Results */}
       <section className="mt-8 pb-16">
-        {results.isLoading && <CardSkeletons />}
+        {results.isLoading && <CardSkeletons isWeb={isWeb} />}
 
         {results.isError && (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
@@ -276,14 +252,27 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
 
         {results.isSuccess && results.data.length === 0 && (
           <p className="py-12 text-center text-muted">
-            Nothing matches{searching ? ` “${search.trim()}”` : " this filter"} yet.
+            Nothing on {isWeb ? "Web" : "iOS"} matches
+            {searching ? ` “${search.trim()}”` : " this filter"} yet.
           </p>
         )}
 
         {results.isSuccess && !showingScreens && sortedApps.length > 0 && (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div
+            className={cn(
+              "grid gap-x-6 gap-y-10",
+              isWeb
+                ? "grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3"
+                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+            )}
+          >
             {sortedApps.map((app) => (
-              <AppCard key={app.id} app={app} onOpen={() => onOpenApp(app.slug)} />
+              <AppCard
+                key={app.id}
+                app={app}
+                platform={platform}
+                onOpen={() => onOpenApp(app.slug)}
+              />
             ))}
           </div>
         )}

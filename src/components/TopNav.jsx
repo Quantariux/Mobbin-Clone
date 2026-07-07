@@ -23,7 +23,7 @@ function IconButton({ icon: Icon, label }) {
   );
 }
 
-export default function TopNav({ onLogoClick, searchValue, onSearchChange }) {
+export default function TopNav({ platform, onLogoClick, searchValue, onSearchChange }) {
   const [section, setSection] = useState("Apps");
   const { user, openAuth, signOut } = useAuth();
 
@@ -67,7 +67,7 @@ export default function TopNav({ onLogoClick, searchValue, onSearchChange }) {
               type="text"
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={`Search on ${section === "Apps" ? "iOS" : "Web"}...`}
+              placeholder={`Search on ${platform === "web" ? "Web" : "iOS"}...`}
               className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-muted"
             />
             <button

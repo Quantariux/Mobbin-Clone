@@ -11,7 +11,6 @@ import {
 } from "../components/ui/dropdown-menu";
 import ScreenCard from "../components/ScreenCard";
 
-const CONTENT_TABS = ["Screens", "UI Elements", "Flows"];
 const SORT_OPTIONS = ["Latest", "Oldest"];
 
 const PLATFORM_LABELS = { ios: "iOS", android: "Android", web: "Web" };
@@ -43,15 +42,14 @@ function DetailSkeleton() {
       <div className="mt-4 h-10 w-1/4 rounded-full bg-surface" />
       <div className="mt-16 flex gap-6">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-[500px] w-[236px] rounded-[36px] bg-surface" />
+          <div key={i} className="h-[420px] w-[236px] rounded-[36px] bg-surface" />
         ))}
       </div>
     </div>
   );
 }
 
-export default function DetailView({ appSlug }) {
-  const [tab, setTab] = useState("Screens");
+export default function DetailView({ appSlug, platform }) {
   const [sort, setSort] = useState("Latest");
 
   const { data: app, isLoading, isError, error } = useQuery({
@@ -60,27 +58,14 @@ export default function DetailView({ appSlug }) {
     enabled: Boolean(appSlug),
   });
 
-  const sortedScreens = useMemo(() => {
+  // screens of the selected platform, newest first (or oldest)
+  const screens = useMemo(() => {
     if (!app?.screens) return [];
-    const screens = [...app.screens].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at),
-    );
-    return sort === "Oldest" ? screens.reverse() : screens;
-  }, [app, sort]);
-
-  // screens grouped by UI element tag (from the single app fetch)
-  const elementGroups = useMemo(() => {
-    const groups = new Map();
-    for (const screen of app?.screens ?? []) {
-      for (const tag of screen.screen_ui_elements ?? []) {
-        const name = tag.ui_elements?.name;
-        if (!name) continue;
-        if (!groups.has(name)) groups.set(name, []);
-        groups.get(name).push(screen);
-      }
-    }
-    return [...groups.entries()];
-  }, [app]);
+    const filtered = app.screens
+      .filter((s) => s.platform === platform)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return sort === "Oldest" ? filtered.reverse() : filtered;
+  }, [app, platform, sort]);
 
   if (!appSlug) {
     return (
@@ -176,7 +161,7 @@ export default function DetailView({ appSlug }) {
             </div>
           </section>
 
-          {/* Sub-nav */}
+          {/* Sub-nav — screens only */}
           <section className="mt-12 flex items-center gap-8 border-b border-line">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -201,23 +186,10 @@ export default function DetailView({ appSlug }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="flex flex-1 gap-7">
-              {CONTENT_TABS.map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setTab(label)}
-                  className={cn(
-                    "cursor-pointer pb-3 text-[15px] transition-colors",
-                    tab === label
-                      ? "-mb-px border-b-2 border-ink font-bold text-ink"
-                      : "border-b-2 border-transparent font-medium text-muted hover:text-ink",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <p className="flex-1 pb-3 text-[15px] font-medium text-muted">
+              {screens.length} {PLATFORM_LABELS[platform]} screen
+              {screens.length === 1 ? "" : "s"}
+            </p>
 
             <button
               type="button"
@@ -228,53 +200,20 @@ export default function DetailView({ appSlug }) {
             </button>
           </section>
 
-          {/* Content */}
+          {/* Screens */}
           <section className="mt-8 pb-16">
-            {tab === "Screens" && (
+            {screens.length === 0 ? (
+              <p className="py-12 text-center text-muted">
+                No {PLATFORM_LABELS[platform]} screens for {app.name} yet — try
+                switching platform below.
+              </p>
+            ) : (
               <div className="flex flex-wrap gap-6">
-                {sortedScreens.map((screen) => (
+                {screens.map((screen) => (
                   <ScreenCard key={screen.id} screen={screen} />
                 ))}
               </div>
             )}
-
-            {tab === "UI Elements" &&
-              (elementGroups.length === 0 ? (
-                <p className="py-12 text-center text-muted">No tagged UI elements yet.</p>
-              ) : (
-                <div className="space-y-12">
-                  {elementGroups.map(([name, screens]) => (
-                    <div key={name}>
-                      <h3 className="text-lg font-bold">{name}</h3>
-                      <div className="mt-4 flex flex-wrap gap-6">
-                        {screens.map((screen) => (
-                          <ScreenCard key={`${name}-${screen.id}`} screen={screen} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-
-            {tab === "Flows" &&
-              ((app.flows ?? []).length === 0 ? (
-                <p className="py-12 text-center text-muted">No flows recorded yet.</p>
-              ) : (
-                <div className="space-y-12">
-                  {app.flows.map((flow) => (
-                    <div key={flow.id}>
-                      <h3 className="text-lg font-bold">{flow.name}</h3>
-                      <div className="mt-4 flex flex-wrap gap-6">
-                        {[...flow.flow_screens]
-                          .sort((a, b) => a.position - b.position)
-                          .map((fs) => (
-                            <ScreenCard key={fs.screens.id} screen={fs.screens} />
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
           </section>
         </>
       )}

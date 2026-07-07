@@ -14,12 +14,6 @@ create table screen_types (
   slug text not null unique
 );
 
-create table ui_elements (
-  id uuid primary key default gen_random_uuid(),
-  name text not null unique,
-  slug text not null unique
-);
-
 create table apps (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -54,27 +48,6 @@ create table screen_screen_types (
   primary key (screen_id, screen_type_id)
 );
 
-create table screen_ui_elements (
-  screen_id uuid not null references screens(id) on delete cascade,
-  ui_element_id uuid not null references ui_elements(id) on delete cascade,
-  primary key (screen_id, ui_element_id)
-);
-
-create table flows (
-  id uuid primary key default gen_random_uuid(),
-  app_id uuid not null references apps(id) on delete cascade,
-  name text not null,
-  slug text not null,
-  created_at timestamptz not null default now()
-);
-
-create table flow_screens (
-  flow_id uuid not null references flows(id) on delete cascade,
-  screen_id uuid not null references screens(id) on delete cascade,
-  position int not null,
-  primary key (flow_id, screen_id)
-);
-
 create table collections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -90,35 +63,25 @@ create table collection_screens (
 );
 
 create index idx_screens_app_id on screens(app_id);
-create index idx_flow_screens_flow_id on flow_screens(flow_id);
 create index idx_app_categories_category_id on app_categories(category_id);
-create index idx_screen_ui_elements_ui_element_id on screen_ui_elements(ui_element_id);
 create index idx_screen_screen_types_screen_type_id on screen_screen_types(screen_type_id);
 create index idx_collection_screens_screen_id on collection_screens(screen_id);
 
 alter table apps enable row level security;
 alter table categories enable row level security;
 alter table screen_types enable row level security;
-alter table ui_elements enable row level security;
 alter table app_categories enable row level security;
 alter table screens enable row level security;
 alter table screen_screen_types enable row level security;
-alter table screen_ui_elements enable row level security;
-alter table flows enable row level security;
-alter table flow_screens enable row level security;
 alter table collections enable row level security;
 alter table collection_screens enable row level security;
 
 create policy "public read apps" on apps for select using (true);
 create policy "public read categories" on categories for select using (true);
 create policy "public read screen_types" on screen_types for select using (true);
-create policy "public read ui_elements" on ui_elements for select using (true);
 create policy "public read app_categories" on app_categories for select using (true);
 create policy "public read screens" on screens for select using (true);
 create policy "public read screen_screen_types" on screen_screen_types for select using (true);
-create policy "public read screen_ui_elements" on screen_ui_elements for select using (true);
-create policy "public read flows" on flows for select using (true);
-create policy "public read flow_screens" on flow_screens for select using (true);
 
 create policy "users manage own collections" on collections
   for all using (auth.uid() = user_id);
