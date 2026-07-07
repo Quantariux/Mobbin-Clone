@@ -30,6 +30,22 @@ export async function getFlowKinds() {
   return data.filter((f) => (seen.has(f.slug) ? false : (seen.add(f.slug), true)));
 }
 
+/** Live library totals for the landing page — no hardcoded marketing numbers. */
+export async function getStats() {
+  const [apps, screens, flows] = await Promise.all([
+    supabase.from("apps").select("*", { count: "exact", head: true }),
+    supabase.from("screens").select("*", { count: "exact", head: true }),
+    supabase.from("flows").select("*", { count: "exact", head: true }),
+  ]);
+  const error = apps.error ?? screens.error ?? flows.error;
+  if (error) throw error;
+  return {
+    apps: apps.count ?? 0,
+    screens: screens.count ?? 0,
+    flows: flows.count ?? 0,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* Apps                                                                */
 /* ------------------------------------------------------------------ */

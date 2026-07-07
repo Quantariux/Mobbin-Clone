@@ -1,6 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Aperture, Hexagon, Leaf, Orbit, Triangle } from "lucide-react";
 import { Logo } from "../components/brand";
 import { useAuth } from "../lib/auth";
+import { getStats } from "../lib/queries";
+import { GITHUB_URL } from "../lib/constants";
 
 /* Invented grayscale "customer" wordmarks — generic names, no real companies. */
 const WORDMARKS = [
@@ -28,6 +31,7 @@ function HeroIcon() {
 
 export default function LandingView({ onExplore }) {
   const { user, openAuth } = useAuth();
+  const { data: stats } = useQuery({ queryKey: ["stats"], queryFn: getStats });
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -37,11 +41,12 @@ export default function LandingView({ onExplore }) {
           <Logo markClassName="size-7" wordClassName="text-[19px]" />
           <nav className="flex items-center gap-7 text-[15px] font-medium">
             <a
-              href="#"
-              onClick={(e) => e.preventDefault()}
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer"
               className="text-ink hover:opacity-70"
             >
-              Pricing
+              GitHub
             </a>
             <button
               type="button"
@@ -65,8 +70,10 @@ export default function LandingView({ onExplore }) {
         </h1>
 
         <p className="mt-8 max-w-xl text-lg leading-relaxed text-muted">
-          Featuring over 400,000 screens and 900 iOS, Android &amp; Web apps
-          — fresh patterns added weekly.
+          {stats
+            ? `Featuring ${stats.screens.toLocaleString()} screens across ${stats.apps.toLocaleString()} apps and ${stats.flows.toLocaleString()} flows`
+            : "A live library of screens, apps and flows"}{" "}
+          — open source and free forever.
         </p>
 
         <div className="mt-10 flex items-center gap-3">
@@ -77,13 +84,15 @@ export default function LandingView({ onExplore }) {
           >
             Join for free
           </button>
-          <button
-            type="button"
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
             className="flex cursor-pointer items-center gap-2 rounded-full border border-line px-6 py-3 text-[15px] font-semibold transition-colors hover:bg-surface"
           >
-            See our plans
+            View on GitHub
             <ArrowRight className="size-4" strokeWidth={2} />
-          </button>
+          </a>
         </div>
 
         <p className="mt-24 text-sm text-muted">Trusted by design teams at</p>

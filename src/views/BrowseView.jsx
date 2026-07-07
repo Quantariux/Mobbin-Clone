@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SlidersHorizontal, X } from "lucide-react";
 import { cn } from "../lib/utils";
+import { GITHUB_URL } from "../lib/constants";
 import {
   getApps,
   getAppsByCategory,
@@ -244,19 +245,20 @@ export default function BrowseView({ search, onClearSearch, onOpenApp }) {
         </button>
       </section>
 
-      {/* PRO banner */}
+      {/* Open-source banner */}
       <section className="flex items-center gap-3 rounded-xl bg-surface px-4 py-2.5">
         <span className="rounded-full bg-ink px-2.5 py-1 text-[11px] font-bold tracking-wide text-white">
-          PRO
+          OPEN SOURCE
         </span>
         <p className="text-sm text-ink">
-          Upgrade for full access to every app and flow —{" "}
+          Loupe is open source and free forever — every app, screen and flow included.{" "}
           <a
-            href="#"
-            onClick={(e) => e.preventDefault()}
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
             className="font-semibold underline underline-offset-2 hover:opacity-70"
           >
-            Get Pro
+            Star it on GitHub
           </a>
         </p>
       </section>
