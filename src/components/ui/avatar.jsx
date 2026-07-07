@@ -1,0 +1,31 @@
+import * as React from "react";
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
+import { cn } from "../../lib/utils";
+
+const Avatar = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative flex size-9 shrink-0 overflow-hidden rounded-full",
+      className,
+    )}
+    {...props}
+  />
+));
+Avatar.displayName = "Avatar";
+
+const AvatarFallback = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Fallback
+    ref={ref}
+    className={cn(
+      "flex size-full items-center justify-center rounded-full",
+      "bg-gradient-to-br from-amber-200 via-rose-300 to-indigo-300",
+      "text-xs font-bold text-white",
+      className,
+    )}
+    {...props}
+  />
+));
+AvatarFallback.displayName = "AvatarFallback";
+
+export { Avatar, AvatarFallback };

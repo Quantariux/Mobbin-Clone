@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --color-ink: #111111;
+  --color-muted: #8a8a93;
+  --color-surface: #f2f2f3;
+  --color-line: #e4e4e7;
+  --color-footer: #0b0b0c;
+}
+
+body {
+  @apply bg-white font-sans text-ink antialiased;
+}
