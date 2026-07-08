@@ -210,7 +210,7 @@ export default function DetailView({ appSlug, platform }) {
             ) : (
               <ScreensGrid platform={platform}>
                 {screens.map((screen) => (
-                  <ScreenCard key={screen.id} screen={screen} />
+                  <ScreenCard key={screen.id} screen={screen} app={app} />
                 ))}
               </ScreensGrid>
             )}

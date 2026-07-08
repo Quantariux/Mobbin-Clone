@@ -286,7 +286,7 @@ export default function BrowseView({ platform, search, onClearSearch, onOpenApp 
                 key={screen.id}
                 screen={screen}
                 caption={screen.apps?.name}
-                onClick={() => screen.apps && onOpenApp(screen.apps.slug)}
+                onOpenApp={() => screen.apps && onOpenApp(screen.apps.slug)}
               />
             ))}
           </ScreensGrid>

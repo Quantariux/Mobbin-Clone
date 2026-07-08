@@ -73,10 +73,7 @@ export async function getAppBySlug(slug: string) {
       `
       *,
       app_categories(categories(name, slug)),
-      screens(
-        id, image_url, platform, is_highlight, created_at,
-        screen_screen_types(screen_types(name, slug))
-      )
+      screens(*, screen_screen_types(screen_types(name, slug)))
     `,
     )
     .eq("slug", slug)
@@ -105,7 +102,9 @@ export async function searchApps(query: string, platform: string) {
 export async function getScreensByScreenType(slug: string, platform: string) {
   const { data, error } = await supabase
     .from("screen_screen_types")
-    .select("screens!inner(*, apps(name, slug, icon_url)), screen_types!inner(slug)")
+    .select(
+      "screens!inner(*, apps(name, slug, icon_url, tagline, website_url)), screen_types!inner(slug)",
+    )
     .eq("screen_types.slug", slug)
     .eq("screens.platform", platform);
   if (error) throw error;

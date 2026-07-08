@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Bookmark } from "lucide-react";
 import { cn } from "../lib/utils";
+import { buildScreenPrompt } from "../lib/prompt";
 import { useSavedScreens } from "../lib/useSavedScreens";
+import ScreenModal from "./ScreenModal";
 
 export function PhoneFrame({ children, className }) {
   return (
@@ -17,10 +19,7 @@ export function PhoneFrame({ children, className }) {
   );
 }
 
-/**
- * Plain rounded web screenshot at a fixed ~1.6:1 aspect ratio with a
- * hairline inset border — no fake browser chrome.
- */
+/** Plain rounded web screenshot at ~1.6:1 with a hairline inset border. */
 export function WebScreenImage({ src, alt, className }) {
   return (
     <div className={cn("relative overflow-hidden rounded-xl", className)}>
@@ -35,12 +34,8 @@ export function WebScreenImage({ src, alt, className }) {
   );
 }
 
-/**
- * Per-platform results layout. iOS wraps phone cards; web is an auto-fill
- * grid capped at 3 columns with viewport-stepped minimum column widths
- * (300px, then 384px at 840px, then 500px at 1024px) and 12px gaps that
- * grow to 24px at 720px — the column width formula guarantees the cap.
- */
+/** Per-platform results layout: iOS wraps phone cards; web is an auto-fill
+ *  grid capped at 3 columns with stepped minimum column widths. */
 export function ScreensGrid({ platform, children }) {
   if (platform !== "web") {
     return <div className="flex flex-wrap gap-6">{children}</div>;
@@ -74,38 +69,37 @@ function GlassBadge({ children, className }) {
   );
 }
 
-/** Web cell: hover overlay + glass badge + slide-up Save/Copy actions. */
-function WebScreenCard({ screen, caption, onClick }) {
+/** Web cell: hover overlay + Save / Copy prompt; click expands the modal. */
+function WebScreenCard({ screen, app, caption, onOpenApp }) {
   const { isSaved, toggleSave } = useSavedScreens();
   const saved = isSaved(screen.id);
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
-  const copy = async (e) => {
+  const copyPrompt = async (e) => {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(screen.image_url);
+      await navigator.clipboard.writeText(buildScreenPrompt(app, screen));
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      window.open(screen.image_url, "_blank", "noreferrer");
+      /* clipboard unavailable */
     }
   };
 
   return (
     <div className="group relative">
       <div
-        className={cn("relative overflow-hidden rounded-xl", onClick && "cursor-pointer")}
-        onClick={onClick}
+        className="relative cursor-pointer overflow-hidden rounded-xl"
+        onClick={() => setExpanded(true)}
       >
         <img
           src={screen.image_url}
-          alt={caption ? `${caption} screen` : "App screen"}
+          alt={screen.title ?? (caption ? `${caption} screen` : "App screen")}
           className="aspect-[1.6/1] size-full bg-surface object-cover object-top"
           loading="lazy"
         />
         <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-ink/10" />
-
-        {/* hover-darkening overlay */}
         <div className="pointer-events-none absolute inset-0 rounded-xl bg-black/25 opacity-0 transition-opacity ease-out group-focus-within:opacity-100 group-hover:opacity-100" />
 
         {screen.is_highlight && (
@@ -114,7 +108,6 @@ function WebScreenCard({ screen, caption, onClick }) {
           </GlassBadge>
         )}
 
-        {/* slide-up action row */}
         <div className="absolute inset-x-4 bottom-4 grid translate-y-4 grid-cols-2 gap-2 opacity-0 transition-[transform,opacity] duration-300 ease-out group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100">
           <button
             type="button"
@@ -128,23 +121,38 @@ function WebScreenCard({ screen, caption, onClick }) {
           </button>
           <button
             type="button"
-            onClick={copy}
+            onClick={copyPrompt}
             className="h-11 cursor-pointer truncate rounded-full bg-white/25 px-4 text-[15px] font-bold text-white backdrop-blur transition-colors ease-out hover:bg-white/35"
           >
-            {copied ? "Copied!" : "Copy"}
+            {copied ? "Copied!" : "Copy prompt"}
           </button>
         </div>
       </div>
 
-      {caption && <p className="mt-3 text-sm font-semibold text-ink">{caption}</p>}
+      {caption && (
+        <p
+          className={cn(
+            "mt-3 pl-1 text-sm font-semibold text-ink",
+            onOpenApp && "cursor-pointer hover:underline",
+          )}
+          onClick={onOpenApp}
+        >
+          {caption}
+        </p>
+      )}
+
+      {expanded && (
+        <ScreenModal app={app} screen={screen} open={expanded} onOpenChange={setExpanded} />
+      )}
     </div>
   );
 }
 
-/** iOS cell: phone frame with corner Highlight pill and bookmark toggle. */
-function PhoneScreenCard({ screen, caption, onClick }) {
+/** iOS cell: phone frame, Highlight pill, bookmark toggle; click expands. */
+function PhoneScreenCard({ screen, app, caption, onOpenApp }) {
   const { isSaved, toggleSave } = useSavedScreens();
   const saved = isSaved(screen.id);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="group relative shrink-0 pl-2 pt-2">
@@ -169,7 +177,7 @@ function PhoneScreenCard({ screen, caption, onClick }) {
         <Bookmark className={cn("size-4", saved && "fill-ink")} strokeWidth={2} />
       </button>
 
-      <div className={onClick ? "cursor-pointer" : undefined} onClick={onClick}>
+      <div className="cursor-pointer" onClick={() => setExpanded(true)}>
         <PhoneFrame>
           <img
             src={screen.image_url}
@@ -178,18 +186,31 @@ function PhoneScreenCard({ screen, caption, onClick }) {
             loading="lazy"
           />
         </PhoneFrame>
-        {caption && (
-          <p className="mt-3 pl-1 text-sm font-semibold text-ink">{caption}</p>
-        )}
       </div>
+      {caption && (
+        <p
+          className={cn(
+            "mt-3 pl-1 text-sm font-semibold text-ink",
+            onOpenApp && "cursor-pointer hover:underline",
+          )}
+          onClick={onOpenApp}
+        >
+          {caption}
+        </p>
+      )}
+
+      {expanded && (
+        <ScreenModal app={app} screen={screen} open={expanded} onOpenChange={setExpanded} />
+      )}
     </div>
   );
 }
 
-export default function ScreenCard({ screen, caption, onClick }) {
+export default function ScreenCard({ screen, app, caption, onOpenApp }) {
+  const resolvedApp = app ?? screen.apps ?? null;
   return screen.platform === "web" ? (
-    <WebScreenCard screen={screen} caption={caption} onClick={onClick} />
+    <WebScreenCard screen={screen} app={resolvedApp} caption={caption} onOpenApp={onOpenApp} />
   ) : (
-    <PhoneScreenCard screen={screen} caption={caption} onClick={onClick} />
+    <PhoneScreenCard screen={screen} app={resolvedApp} caption={caption} onOpenApp={onOpenApp} />
   );
 }
