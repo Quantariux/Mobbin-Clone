@@ -449,7 +449,7 @@ const APPS = [
     domain: "sprout.money",
     headline1: "Money that",
     headline2: "grows with you.",
-    platform: ["ios", "web"],
+    platform: ["ios"],
     rating: 4.6,
     review_count: 128,
     website_url: "https://www.sprout.money",
@@ -466,7 +466,7 @@ const APPS = [
     domain: "wayfarer.travel",
     headline1: "Every stay,",
     headline2: "one search away.",
-    platform: ["ios", "android", "web"],
+    platform: ["ios"],
     rating: 4.7,
     review_count: 96,
     website_url: "https://www.wayfarer.travel",
@@ -483,7 +483,7 @@ const APPS = [
     domain: "nibbly.eats",
     headline1: "Dinner, delivered",
     headline2: "before you're hungry.",
-    platform: ["ios", "android"],
+    platform: ["ios"],
     rating: 4.4,
     review_count: 212,
     website_url: "https://www.nibbly.eats",
@@ -500,7 +500,7 @@ const APPS = [
     domain: "chronicle.news",
     headline1: "Your city,",
     headline2: "as it happens.",
-    platform: ["ios", "web"],
+    platform: ["ios"],
     rating: 4.2,
     review_count: 74,
     website_url: "https://www.chronicle.news",
@@ -524,27 +524,13 @@ const APPS = [
     categories: ["health-fitness"],
     highlight: ["dashboard"],
   },
-  {
-    name: "Quanta",
-    slug: "quanta",
-    tagline: "The marketplace for makers",
-    accent: "#7c3aed",
-    soft: "#ede9fe",
-    bigStat: "$482",
-    domain: "quanta.shop",
-    headline1: "Made by hand,",
-    headline2: "found by you.",
-    platform: ["web"],
-    rating: 4.3,
-    review_count: 63,
-    website_url: "https://www.quanta.shop",
-    categories: ["shopping"],
-    highlight: ["filter"],
-  },
 ];
 
 const KINDS = ["welcome", "signup", "dashboard", "notifications", "filter"];
-const SEEDED_PLATFORMS = ["ios", "web"]; // android later
+// iOS only: invented mockups stand in until a real device-farm capture stage
+// exists. Web screens are REAL captures — they come from capture/crawl.mjs,
+// never from this seed. (The WEB generators below are kept for reference.)
+const SEEDED_PLATFORMS = ["ios"];
 
 const slugify = (s) =>
   s.toLowerCase().replace(/&/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
