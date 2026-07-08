@@ -9,7 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "../components/ui/dropdown-menu";
-import ScreenCard from "../components/ScreenCard";
+import ScreenCard, { ScreensGrid } from "../components/ScreenCard";
 
 const SORT_OPTIONS = ["Latest", "Oldest"];
 
@@ -208,11 +208,11 @@ export default function DetailView({ appSlug, platform }) {
                 switching platform below.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-6">
+              <ScreensGrid platform={platform}>
                 {screens.map((screen) => (
                   <ScreenCard key={screen.id} screen={screen} />
                 ))}
-              </div>
+              </ScreensGrid>
             )}
           </section>
         </>

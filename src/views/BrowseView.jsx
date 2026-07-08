@@ -11,7 +11,7 @@ import {
   getScreenTypes,
   searchApps,
 } from "../lib/queries";
-import ScreenCard, { BrowserFrame, PhoneFrame } from "../components/ScreenCard";
+import ScreenCard, { PhoneFrame, ScreensGrid, WebScreenImage } from "../components/ScreenCard";
 
 const SORT_TABS = [
   { label: "Latest", key: "latest", column: "created_at" },
@@ -72,9 +72,11 @@ function AppCard({ app, platform, onOpen }) {
       >
         {preview ? (
           isWeb ? (
-            <BrowserFrame className="max-w-[520px]">
-              <img src={preview.image_url} alt={`${app.name} screen`} className="block w-full" loading="lazy" />
-            </BrowserFrame>
+            <WebScreenImage
+              src={preview.image_url}
+              alt={`${app.name} screen`}
+              className="w-full max-w-[520px] self-center"
+            />
           ) : (
             <PhoneFrame className="mt-2 h-[520px]">
               <img src={preview.image_url} alt={`${app.name} screen`} className="block w-full" loading="lazy" />
@@ -278,7 +280,7 @@ export default function BrowseView({ platform, search, onClearSearch, onOpenApp 
         )}
 
         {results.isSuccess && showingScreens && results.data.length > 0 && (
-          <div className="flex flex-wrap gap-6">
+          <ScreensGrid platform={platform}>
             {results.data.map((screen) => (
               <ScreenCard
                 key={screen.id}
@@ -287,7 +289,7 @@ export default function BrowseView({ platform, search, onClearSearch, onOpenApp 
                 onClick={() => screen.apps && onOpenApp(screen.apps.slug)}
               />
             ))}
-          </div>
+          </ScreensGrid>
         )}
       </section>
     </main>

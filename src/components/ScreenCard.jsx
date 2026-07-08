@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Bookmark } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useSavedScreens } from "../lib/useSavedScreens";
@@ -16,39 +17,137 @@ export function PhoneFrame({ children, className }) {
   );
 }
 
-/** Wide desktop-browser frame for web screens — traffic lights + URL strip. */
-export function BrowserFrame({ children, className }) {
+/**
+ * Plain rounded web screenshot at a fixed ~1.6:1 aspect ratio with a
+ * hairline inset border — no fake browser chrome.
+ */
+export function WebScreenImage({ src, alt, className }) {
   return (
-    <div
-      className={cn(
-        "w-full shrink-0 overflow-hidden rounded-2xl border border-line bg-white",
-        "shadow-[0_18px_50px_rgba(0,0,0,0.12)]",
-        className,
-      )}
-    >
-      <div className="flex items-center gap-1.5 border-b border-line bg-[#f6f6f7] px-3 py-2">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="size-2 rounded-full bg-[#dcdce0]" />
-        ))}
-        <span className="mx-auto h-3.5 w-2/5 rounded-full bg-[#ececee]" />
-      </div>
-      <div className="bg-surface">{children}</div>
+    <div className={cn("relative overflow-hidden rounded-xl", className)}>
+      <img
+        src={src}
+        alt={alt}
+        className="aspect-[1.6/1] size-full bg-surface object-cover object-top"
+        loading="lazy"
+      />
+      <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-ink/10" />
     </div>
   );
 }
 
 /**
- * A DB-backed screen: framed screenshot image with an optional Highlight
- * pill and a bookmark toggle writing to collection_screens. Frame shape
- * follows the screen's platform — phone for ios, browser for web.
+ * Per-platform results layout. iOS wraps phone cards; web is an auto-fill
+ * grid capped at 3 columns with viewport-stepped minimum column widths
+ * (300px, then 384px at 840px, then 500px at 1024px) and 12px gaps that
+ * grow to 24px at 720px — the column width formula guarantees the cap.
  */
-export default function ScreenCard({ screen, caption, onClick }) {
+export function ScreensGrid({ platform, children }) {
+  if (platform !== "web") {
+    return <div className="flex flex-wrap gap-6">{children}</div>;
+  }
+  return (
+    <div
+      className={cn(
+        "grid content-start",
+        "[--col-gap:12px] min-[720px]:[--col-gap:24px]",
+        "gap-x-(--col-gap) gap-y-3 min-[720px]:gap-y-6",
+        "[--min-col:300px] min-[840px]:[--min-col:384px] min-[1024px]:[--min-col:500px]",
+        "[--max-col:calc((100%-2*var(--col-gap))/3)]",
+        "grid-cols-[repeat(auto-fill,minmax(max(var(--min-col),var(--max-col)),1fr))]",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function GlassBadge({ children, className }) {
+  return (
+    <span
+      className={cn(
+        "rounded-lg bg-black/40 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Web cell: hover overlay + glass badge + slide-up Save/Copy actions. */
+function WebScreenCard({ screen, caption, onClick }) {
   const { isSaved, toggleSave } = useSavedScreens();
   const saved = isSaved(screen.id);
-  const isWeb = screen.platform === "web";
+  const [copied, setCopied] = useState(false);
+
+  const copy = async (e) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(screen.image_url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.open(screen.image_url, "_blank", "noreferrer");
+    }
+  };
 
   return (
-    <div className={cn("group relative shrink-0 pl-2 pt-2", isWeb && "w-full max-w-[460px]")}>
+    <div className="group relative">
+      <div
+        className={cn("relative overflow-hidden rounded-xl", onClick && "cursor-pointer")}
+        onClick={onClick}
+      >
+        <img
+          src={screen.image_url}
+          alt={caption ? `${caption} screen` : "App screen"}
+          className="aspect-[1.6/1] size-full bg-surface object-cover object-top"
+          loading="lazy"
+        />
+        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-ink/10" />
+
+        {/* hover-darkening overlay */}
+        <div className="pointer-events-none absolute inset-0 rounded-xl bg-black/25 opacity-0 transition-opacity ease-out group-focus-within:opacity-100 group-hover:opacity-100" />
+
+        {screen.is_highlight && (
+          <GlassBadge className="absolute left-4 top-4 transition-opacity ease-out group-focus-within:opacity-0 group-hover:opacity-0">
+            Highlight
+          </GlassBadge>
+        )}
+
+        {/* slide-up action row */}
+        <div className="absolute inset-x-4 bottom-4 grid translate-y-4 grid-cols-2 gap-2 opacity-0 transition-[transform,opacity] duration-300 ease-out group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSave(screen.id);
+            }}
+            className="h-11 cursor-pointer truncate rounded-full bg-white px-4 text-[15px] font-bold text-ink transition-colors ease-out hover:bg-white/90"
+          >
+            {saved ? "Saved" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={copy}
+            className="h-11 cursor-pointer truncate rounded-full bg-white/25 px-4 text-[15px] font-bold text-white backdrop-blur transition-colors ease-out hover:bg-white/35"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      {caption && <p className="mt-3 text-sm font-semibold text-ink">{caption}</p>}
+    </div>
+  );
+}
+
+/** iOS cell: phone frame with corner Highlight pill and bookmark toggle. */
+function PhoneScreenCard({ screen, caption, onClick }) {
+  const { isSaved, toggleSave } = useSavedScreens();
+  const saved = isSaved(screen.id);
+
+  return (
+    <div className="group relative shrink-0 pl-2 pt-2">
       {screen.is_highlight && (
         <span className="absolute left-0 top-0 z-10 rounded-lg bg-neutral-400/90 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
           Highlight
@@ -71,29 +170,26 @@ export default function ScreenCard({ screen, caption, onClick }) {
       </button>
 
       <div className={onClick ? "cursor-pointer" : undefined} onClick={onClick}>
-        {isWeb ? (
-          <BrowserFrame>
-            <img
-              src={screen.image_url}
-              alt={caption ? `${caption} screen` : "App screen"}
-              className="block w-full"
-              loading="lazy"
-            />
-          </BrowserFrame>
-        ) : (
-          <PhoneFrame>
-            <img
-              src={screen.image_url}
-              alt={caption ? `${caption} screen` : "App screen"}
-              className="block w-full"
-              loading="lazy"
-            />
-          </PhoneFrame>
-        )}
+        <PhoneFrame>
+          <img
+            src={screen.image_url}
+            alt={caption ? `${caption} screen` : "App screen"}
+            className="block w-full"
+            loading="lazy"
+          />
+        </PhoneFrame>
         {caption && (
           <p className="mt-3 pl-1 text-sm font-semibold text-ink">{caption}</p>
         )}
       </div>
     </div>
+  );
+}
+
+export default function ScreenCard({ screen, caption, onClick }) {
+  return screen.platform === "web" ? (
+    <WebScreenCard screen={screen} caption={caption} onClick={onClick} />
+  ) : (
+    <PhoneScreenCard screen={screen} caption={caption} onClick={onClick} />
   );
 }
